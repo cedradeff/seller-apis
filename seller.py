@@ -376,7 +376,7 @@ async def upload_prices(watch_remnants, client_id, seller_token):
 
     Пример корректного использования:
         upload_prices(watch_remnants, "12345", "abcdef123456"))
-        [{'offer_id': 'A123', 'price': '5990', 'old_price': '0', 'currency_code': 'RUB', 'auto_action_enabled': 'UNKNOWN'}]
+        [{'offer_id': 'A123', 'price': '5990', 'old_price': '0'}]
 
     Пример некорректного использования:
         upload_prices(None, "12345", "abcdef123456"))
