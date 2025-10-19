@@ -12,7 +12,27 @@ logger = logging.getLogger(__file__)
 
 
 def get_product_list(last_id, client_id, seller_token):
-    """Получить список товаров магазина озон"""
+    """Получить список товаров магазина озон через API
+
+    Args:
+        last_id (str): Идентификатор последнего товара в предыдущем запросе.
+        client_id (str): Уникальный идентификатор клиента (продавца) Ozon.
+        seller_token (str): Токен авторизации продавца для доступа к API.
+
+    Returns:
+        dict: Объект с результатами запроса, содержащий список товаров и параметры пагинации.
+
+    Пример корректного использования:
+        >>> get_product_list("", "12345", "abcd1234")
+        {'items': [...], 'total': 1000, 'last_id': 'xyz'}
+
+    Пример некорректного использования:
+        >>> get_product_list("", "wrong_id", "bad_token")
+        Traceback (most recent call last):
+            ...
+        requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url
+    """
+
     url = "https://api-seller.ozon.ru/v2/product/list"
     headers = {
         "Client-Id": client_id,
@@ -32,7 +52,29 @@ def get_product_list(last_id, client_id, seller_token):
 
 
 def get_offer_ids(client_id, seller_token):
-    """Получить артикулы товаров магазина озон"""
+    """Получить артикулы товаров магазина озон
+
+    Функция выполняет последовательные запросы к API, постранично загружая все товары магазина.
+    Возвращает список артикулов, пригодных для дальнейшего обновления цен или остатков.
+
+    Args:
+        client_id (str): Уникальный идентификатор клиента (продавца) Ozon.
+        seller_token (str): Токен авторизации продавца для доступа к API.
+
+    Returns:
+        list[str]: Список артикулов (offer_id) всех товаров магазина.
+
+    Пример корректного использования:
+        >>> get_offer_ids("12345", "abcdef123456")
+        ['A123', 'B456', 'C789']
+
+    Пример некорректного использования:
+        >>> get_offer_ids("wrong_id", "bad_token")
+        Traceback (most recent call last):
+            ...
+        requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url
+    """
+
     last_id = ""
     product_list = []
     while True:
@@ -49,7 +91,33 @@ def get_offer_ids(client_id, seller_token):
 
 
 def update_price(prices: list, client_id, seller_token):
-    """Обновить цены товаров"""
+    """Обновить цены товаров
+
+    Функция отправляет список цен для обновления в личном кабинете продавца.
+
+    Args:
+        prices (list): Список словарей с информацией о ценах. Каждый элемент должен содержать
+            поля offer_id, price, old_price и currency_code.
+        client_id (str): Уникальный идентификатор клиента (продавца) Ozon.
+        seller_token (str): Токен авторизации продавца для доступа к API.
+
+    Returns:
+        dict: Ответ API с результатом обработки — информация о статусе обновления цен.
+
+    Пример корректного использования:
+        >>> prices = [
+        ...     {"offer_id": "A123", "price": "5990", "old_price": "0", "currency_code": "RUB"},
+        ... ]
+        >>> update_price(prices, "12345", "abcdef123456")
+        {'result': {'updated_count': 1}}
+
+    Пример некорректного использования:
+        >>> update_price([], "wrong_id", "bad_token")
+        Traceback (most recent call last):
+            ...
+        requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url
+    """
+
     url = "https://api-seller.ozon.ru/v1/product/import/prices"
     headers = {
         "Client-Id": client_id,
@@ -62,7 +130,35 @@ def update_price(prices: list, client_id, seller_token):
 
 
 def update_stocks(stocks: list, client_id, seller_token):
-    """Обновить остатки"""
+    """Обновить остатки
+
+    Функция передаёт информацию о количестве доступных товаров на складе,
+    чтобы синхронизировать наличие между внутренней системой и маркетплейсом.
+
+    Args:
+        stocks (list): Список словарей с данными об остатках.
+            Каждый элемент должен содержать поля offer_id и stock.
+        client_id (str): Уникальный идентификатор клиента (продавца) Ozon.
+        seller_token (str): Токен авторизации продавца для доступа к API.
+
+    Returns:
+        dict: Ответ API, содержащий информацию о результате обновления остатков.
+
+    Пример корректного использования:
+        >>> stocks = [
+        ...     {"offer_id": "A123", "stock": 15},
+        ...     {"offer_id": "B456", "stock": 0},
+        ... ]
+        >>> update_stocks(stocks, "12345", "abcdef123456")
+        {'result': {'updated_count': 2}}
+
+    Пример некорректного использования:
+        >>> update_stocks([], "wrong_id", "bad_token")
+        Traceback (most recent call last):
+            ...
+        requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url
+    """
+
     url = "https://api-seller.ozon.ru/v1/product/import/stocks"
     headers = {
         "Client-Id": client_id,
@@ -75,7 +171,33 @@ def update_stocks(stocks: list, client_id, seller_token):
 
 
 def download_stock():
-    """Скачать файл ostatki с сайта casio"""
+    """Скачать файл ostatki с сайта casio
+    
+        Функция скачивает архив с сайта, извлекает из него Excel-файл с остатками,
+    считывает данные в формате pandas DataFrame и преобразует их в список словарей.
+    После обработки временный файл удаляется.
+
+    Args:
+        Нет аргументов.
+
+    Returns:
+        list[dict]: Список словарей, где каждый элемент содержит информацию о товаре
+        (например, код, количество, цену и другие поля из Excel-файла).
+
+    Пример корректного использования:
+        >>> remnants = download_stock()
+        >>> type(remnants)
+        <class 'list'>
+        >>> len(remnants) > 0
+        True
+
+    Пример некорректного использования:
+        >>> # Ошибка при отсутствии соединения с сайтом
+        >>> download_stock()
+        Traceback (most recent call last):
+            ...
+        requests.exceptions.ConnectionError: HTTPSConnectionPool(host='timeworld.ru', port=443): Max retries exceeded
+    """
     # Скачать остатки с сайта
     casio_url = "https://timeworld.ru/upload/files/ostatki.zip"
     session = requests.Session()
@@ -96,6 +218,33 @@ def download_stock():
 
 
 def create_stocks(watch_remnants, offer_ids):
+    """Формирует список остатков товаров для отправки в Ozon.
+
+    Функция сопоставляет загруженные остатки с артикулами, доступными на площадке,
+    корректирует количество в зависимости от значений из файла и добавляет недостающие
+    товары с нулевым остатком.
+
+    Args:
+        watch_remnants (list[dict]): Список словарей с информацией о товарах
+            из локальной системы, содержащий поля "Код" и "Количество".
+        offer_ids (list[str]): Список артикулов товаров, загруженных на Ozon.
+
+    Returns:
+        list[dict]: Список словарей с полями "offer_id" и "stock", готовый для обновления
+        остатков через API.
+
+    Пример корректного использования:
+        >>> watch_remnants = [{"Код": "A123", "Количество": ">10"}, {"Код": "B456", "Количество": "1"}]
+        >>> offer_ids = ["A123", "B456", "C789"]
+        >>> create_stocks(watch_remnants, offer_ids)
+        [{'offer_id': 'A123', 'stock': 100}, {'offer_id': 'B456', 'stock': 0}, {'offer_id': 'C789', 'stock': 0}]
+
+    Пример некорректного использования:
+        >>> create_stocks(None, ["A123"])
+        Traceback (most recent call last):
+            ...
+        TypeError: 'NoneType' object is not iterable
+    """
     # Уберем то, что не загружено в seller
     stocks = []
     for watch in watch_remnants:
@@ -116,6 +265,36 @@ def create_stocks(watch_remnants, offer_ids):
 
 
 def create_prices(watch_remnants, offer_ids):
+    """Формирует список цен для товаров, подготовленный для отправки в Ozon.
+
+    Функция сопоставляет локальные данные о товарах с артикулами, доступными на площадке,
+    конвертирует цену в числовой формат и формирует словарь с необходимыми полями для API.
+
+    Args:
+        watch_remnants (list[dict]): Список словарей с информацией о товарах из локальной системы,
+            содержащий поля "Код" и "Цена".
+        offer_ids (list[str]): Список артикулов товаров, загруженных на Ozon.
+
+    Returns:
+        list[dict]: Список словарей с полями "offer_id", "price", "old_price",
+        "currency_code" и "auto_action_enabled", готовый для обновления цен через API.
+
+    Пример корректного использования:
+        >>> watch_remnants = [{"Код": "A123", "Цена": "5'990.00 руб."}, {"Код": "B456", "Цена": "12 340.00 руб."}]
+        >>> offer_ids = ["A123", "B456", "C789"]
+        >>> create_prices(watch_remnants, offer_ids)
+        [
+            {'offer_id': 'A123', 'price': '5990', 'old_price': '0', 'currency_code': 'RUB', 'auto_action_enabled': 'UNKNOWN'},
+            {'offer_id': 'B456', 'price': '12340', 'old_price': '0', 'currency_code': 'RUB', 'auto_action_enabled': 'UNKNOWN'}
+        ]
+
+    Пример некорректного использования:
+        >>> create_prices(None, ["A123"])
+        Traceback (most recent call last):
+            ...
+        TypeError: 'NoneType' object is not iterable
+    """
+
     prices = []
     for watch in watch_remnants:
         if str(watch.get("Код")) in offer_ids:
@@ -131,17 +310,80 @@ def create_prices(watch_remnants, offer_ids):
 
 
 def price_conversion(price: str) -> str:
-    """Преобразовать цену. Пример: 5'990.00 руб. -> 5990"""
+    """Преобразует строку с ценой в числовой формат без символов и пробелов.
+
+    Удаляет все нецифровые символы (пробелы, апострофы, валютные обозначения и т.д.)
+    и возвращает строку, содержащую только цифры. Используется для подготовки цен
+    перед отправкой в API или записью в базу данных.
+
+    Args:
+        price (str): Цена в текстовом формате, например "5'990.00 руб.".
+
+    Пример корректного использования:
+        price_conversion("5'990.00 руб.")
+        '5990'
+
+    Пример некорректного использования:
+        price_conversion(None)
+        Traceback (most recent call last):
+            ...
+        AttributeError: 'NoneType' object has no attribute 'split'
+    """
     return re.sub("[^0-9]", "", price.split(".")[0])
 
 
 def divide(lst: list, n: int):
-    """Разделить список lst на части по n элементов"""
+    """Разделяет список на части заданного размера.
+
+    Функция используется для разбивки большого списка на более мелкие подсписки
+    по n элементов, что удобно при отправке данных пакетами через API.
+
+    Args:
+        lst (list): Исходный список элементов для разделения.
+        n (int): Размер каждой части (подсписка).
+
+    Yields:
+        list: Подсписки исходного списка, каждый размером до n элементов.
+
+    Пример корректного использования:
+        >>> list(divide([1, 2, 3, 4, 5], 2))
+        [[1, 2], [3, 4], [5]]
+
+    Пример некорректного использования:
+        >>> list(divide(None, 2))
+        Traceback (most recent call last):
+            ...
+        TypeError: 'NoneType' object is not iterable
+    """
     for i in range(0, len(lst), n):
-        yield lst[i : i + n]
+        yield lst[i: i + n]
 
 
 async def upload_prices(watch_remnants, client_id, seller_token):
+    """Загружает и обновляет цены товаров на Ozon через API.
+
+    Функция получает список всех артикулов магазина, формирует для них
+    актуальные цены из локальных данных и отправляет их пакетами по 1000 элементов.
+
+    Args:
+        watch_remnants (list[dict]): Список словарей с информацией о товарах
+            из локальной системы, содержащий поля "Код" и "Цена".
+        client_id (str): Уникальный идентификатор клиента (продавца) Ozon.
+        seller_token (str): Токен авторизации продавца для доступа к API.
+
+    Returns:
+        list[dict]: Список словарей с ценами, которые были отправлены на Ozon.
+
+    Пример корректного использования:
+        upload_prices(watch_remnants, "12345", "abcdef123456"))
+        [{'offer_id': 'A123', 'price': '5990', 'old_price': '0', 'currency_code': 'RUB', 'auto_action_enabled': 'UNKNOWN'}]
+
+    Пример некорректного использования:
+        upload_prices(None, "12345", "abcdef123456"))
+        Traceback (most recent call last):
+            ...
+        TypeError: 'NoneType' object is not iterable
+    """
     offer_ids = get_offer_ids(client_id, seller_token)
     prices = create_prices(watch_remnants, offer_ids)
     for some_price in list(divide(prices, 1000)):
@@ -150,6 +392,37 @@ async def upload_prices(watch_remnants, client_id, seller_token):
 
 
 async def upload_stocks(watch_remnants, client_id, seller_token):
+    """Загружает и обновляет остатки товаров на Ozon через API.
+
+    Функция получает список всех артикулов магазина, формирует для них
+    актуальные остатки из локальных данных и отправляет их пакетами по 100 элементов.
+    Также возвращает отдельно список товаров с ненулевыми остатками.
+
+    Args:
+        watch_remnants (list[dict]): Список словарей с информацией о товарах
+            из локальной системы, содержащий поля "Код" и "Количество".
+        client_id (str): Уникальный идентификатор клиента (продавца) Ozon.
+        seller_token (str): Токен авторизации продавца для доступа к API.
+
+    Returns:
+        tuple:
+            list[dict]: Список словарей с остатками товаров, у которых stock != 0.
+            list[dict]: Полный список словарей с остатками товаров, отправленных на Ozon.
+
+    Пример корректного использования:
+
+        upload_stocks(watch_remnants, "12345", "abcdef123456"))
+        (
+            [{'offer_id': 'A123', 'stock': 100}],
+            [{'offer_id': 'A123', 'stock': 100}]
+        )
+
+    Пример некорректного использования:
+        upload_stocks(None, "12345", "abcdef123456"))
+        Traceback (most recent call last):
+            ...
+        TypeError: 'NoneType' object is not iterable
+    """
     offer_ids = get_offer_ids(client_id, seller_token)
     stocks = create_stocks(watch_remnants, offer_ids)
     for some_stock in list(divide(stocks, 100)):
