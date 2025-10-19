@@ -172,7 +172,7 @@ def update_stocks(stocks: list, client_id, seller_token):
 
 def download_stock():
     """Скачать файл ostatki с сайта casio
-    
+
         Функция скачивает архив с сайта, извлекает из него Excel-файл с остатками,
     считывает данные в формате pandas DataFrame и преобразует их в список словарей.
     После обработки временный файл удаляется.

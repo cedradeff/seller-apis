@@ -11,6 +11,27 @@ logger = logging.getLogger(__file__)
 
 
 def get_product_list(page, campaign_id, access_token):
+    """Получает список товаров Яндекс.Маркета для указанной страницы кампании.
+
+    Args:
+        page (str): Токен страницы для постраничной загрузки товаров.
+        campaign_id (str): Идентификатор кампании Яндекс.Маркета.
+        access_token (str): Токен доступа к API Яндекс.Маркета.
+
+    Returns:
+        dict: Объект с результатами запроса, содержащий товары и параметры пагинации.
+
+    Пример корректного использования:
+        >>> get_product_list("", "123456", "token_abcdef")
+        {'offerMappingEntries': [...], 'paging': {...}}
+
+    Пример некорректного использования:
+        >>> get_product_list("", "wrong_id", "bad_token")
+        Traceback (most recent call last):
+            ...
+        requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url
+    """
+
     endpoint_url = "https://api.partner.market.yandex.ru/"
     headers = {
         "Content-Type": "application/json",
@@ -30,6 +51,27 @@ def get_product_list(page, campaign_id, access_token):
 
 
 def update_stocks(stocks, campaign_id, access_token):
+    """Отправляет обновлённые остатки товаров на Яндекс.Маркет.
+
+    Args:
+        stocks (list[dict]): Список словарей с остатками товаров (sku, warehouseId, items).
+        campaign_id (str): Идентификатор кампании Яндекс.Маркета.
+        access_token (str): Токен доступа к API Яндекс.Маркета.
+
+    Returns:
+        dict: Ответ API с информацией о результате обновления остатков.
+
+    Пример корректного использования:
+        >>> stocks = [{"sku": "A123", "warehouseId": 1, "items": [{"count": 10, "type": "FIT", "updatedAt": "2025-10-19T12:00:00Z"}]}]
+        >>> update_stocks(stocks, "123456", "token_abcdef")
+        {'result': {'updated': 1}}
+
+    Пример некорректного использования:
+        >>> update_stocks([], "wrong_id", "bad_token")
+        Traceback (most recent call last):
+            ...
+        requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url
+    """
     endpoint_url = "https://api.partner.market.yandex.ru/"
     headers = {
         "Content-Type": "application/json",
@@ -46,6 +88,27 @@ def update_stocks(stocks, campaign_id, access_token):
 
 
 def update_price(prices, campaign_id, access_token):
+    """Отправляет обновлённые цены товаров на Яндекс.Маркет.
+
+    Args:
+        prices (list[dict]): Список словарей с ценами товаров.
+        campaign_id (str): Идентификатор кампании Яндекс.Маркета.
+        access_token (str): Токен доступа к API Яндекс.Маркета.
+
+    Returns:
+        dict: Ответ API с информацией о результате обновления цен.
+
+    Пример корректного использования:
+        >>> prices = [{"id": "A123", "price": {"value": 5990, "currencyId": "RUR"}}]
+        >>> update_price(prices, "123456", "token_abcdef")
+        {'result': {'updated': 1}}
+
+    Пример некорректного использования:
+        >>> update_price([], "wrong_id", "bad_token")
+        Traceback (most recent call last):
+            ...
+        requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url
+    """
     endpoint_url = "https://api.partner.market.yandex.ru/"
     headers = {
         "Content-Type": "application/json",
@@ -62,7 +125,25 @@ def update_price(prices, campaign_id, access_token):
 
 
 def get_offer_ids(campaign_id, market_token):
-    """Получить артикулы товаров Яндекс маркета"""
+    """Получает список артикулов товаров (shopSku) для указанной кампании.
+
+    Args:
+        campaign_id (str): Идентификатор кампании Яндекс.Маркета.
+        market_token (str): Токен доступа к API Яндекс.Маркета.
+
+    Returns:
+        list[str]: Список артикулов товаров, зарегистрированных в кампании.
+
+    Пример корректного использования:
+        >>> get_offer_ids("123456", "token_abcdef")
+        ['A123', 'B456', 'C789']
+
+    Пример некорректного использования:
+        >>> get_offer_ids("wrong_id", "bad_token")
+        Traceback (most recent call last):
+            ...
+        requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url
+    """
     page = ""
     product_list = []
     while True:
@@ -78,7 +159,31 @@ def get_offer_ids(campaign_id, market_token):
 
 
 def create_stocks(watch_remnants, offer_ids, warehouse_id):
-    # Уберем то, что не загружено в market
+    """Формирует список остатков товаров для отправки на Яндекс.Маркет.
+
+    Args:
+        watch_remnants (list[dict]): Локальные данные об остатках товаров, содержащие поля "Код" и "Количество".
+        offer_ids (list[str]): Список артикулов товаров, доступных на Яндекс.Маркете.
+        warehouse_id (str): Идентификатор склада на Маркете.
+
+    Returns:
+        list[dict]: Список словарей с остатками товаров, готовый для отправки через API.
+
+    Пример корректного использования:
+        >>> watch_remnants = [{"Код": "A123", "Количество": ">10"}]
+        >>> offer_ids = ["A123", "B456"]
+        >>> create_stocks(watch_remnants, offer_ids, "1")
+        [
+            {'sku': 'A123', 'warehouseId': '1', 'items': [{'count': 100, 'type': 'FIT', 'updatedAt': '2025-10-19T12:00:00Z'}]},
+            {'sku': 'B456', 'warehouseId': '1', 'items': [{'count': 0, 'type': 'FIT', 'updatedAt': '2025-10-19T12:00:00Z'}]}
+        ]
+
+    Пример некорректного использования:
+        >>> create_stocks(None, ["A123"], "1")
+        Traceback (most recent call last):
+            ...
+        TypeError: 'NoneType' object is not iterable
+    """
     stocks = list()
     date = str(datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z")
     for watch in watch_remnants:
@@ -123,6 +228,27 @@ def create_stocks(watch_remnants, offer_ids, warehouse_id):
 
 
 def create_prices(watch_remnants, offer_ids):
+    """Формирует список цен товаров для отправки на Яндекс.Маркет.
+
+    Args:
+        watch_remnants (list[dict]): Локальные данные о товарах с полями "Код" и "Цена".
+        offer_ids (list[str]): Список артикулов товаров, доступных на Яндекс.Маркете.
+
+    Returns:
+        list[dict]: Список словарей с ценами товаров, готовый для обновки через API.
+
+    Пример корректного использования:
+        >>> watch_remnants = [{"Код": "A123", "Цена": "5'990.00 руб."}]
+        >>> offer_ids = ["A123"]
+        >>> create_prices(watch_remnants, offer_ids)
+        [{'id': 'A123', 'price': {'value': 5990, 'currencyId': 'RUR'}}]
+
+    Пример некорректного использования:
+        >>> create_prices(None, ["A123"])
+        Traceback (most recent call last):
+            ...
+        TypeError: 'NoneType' object is not iterable
+    """
     prices = []
     for watch in watch_remnants:
         if str(watch.get("Код")) in offer_ids:
@@ -143,6 +269,26 @@ def create_prices(watch_remnants, offer_ids):
 
 
 async def upload_prices(watch_remnants, campaign_id, market_token):
+    """Отправляет цены товаров на Яндекс.Маркет пакетами.
+
+    Args:
+        watch_remnants (list[dict]): Локальные данные о товарах с полями "Код" и "Цена".
+        campaign_id (str): Идентификатор кампании Яндекс.Маркета.
+        market_token (str): Токен доступа к API Яндекс.Маркета.
+
+    Returns:
+        list[dict]: Список словарей с ценами, которые были отправлены на Маркет.
+
+    Пример корректного использования:
+        upload_prices(watch_remnants, "123456", "token_abcdef"))
+        [{'id': 'A123', 'price': {'value': 5990, 'currencyId': 'RUR'}}]
+
+    Пример некорректного использования:
+        upload_prices(None, "123456", "token_abcdef"))
+        Traceback (most recent call last):
+            ...
+        TypeError: 'NoneType' object is not iterable
+    """
     offer_ids = get_offer_ids(campaign_id, market_token)
     prices = create_prices(watch_remnants, offer_ids)
     for some_prices in list(divide(prices, 500)):
@@ -151,6 +297,30 @@ async def upload_prices(watch_remnants, campaign_id, market_token):
 
 
 async def upload_stocks(watch_remnants, campaign_id, market_token, warehouse_id):
+    """Отправляет остатки товаров на Яндекс.Маркет пакетами.
+
+    Args:
+        watch_remnants (list[dict]): Локальные данные об остатках товаров.
+        campaign_id (str): Идентификатор кампании Яндекс.Маркета.
+        market_token (str): Токен доступа к API Яндекс.Маркета.
+        warehouse_id (str): Идентификатор склада на Маркете.
+
+    Returns:
+        tuple:
+            list[dict]: Список товаров с ненулевыми остатками.
+            list[dict]: Полный список остатков, отправленных на Маркет.
+
+    Пример корректного использования:
+        upload_stocks(watch_remnants, "123456", "token_abcdef", "1"))
+        ([{'sku': 'A123', 'warehouseId': '1', 'items': [{'count': 100, 'type': 'FIT', 'updatedAt': '2025-10-19T12:00:00Z'}]}],
+         [{'sku': 'A123', 'warehouseId': '1', 'items': [{'count': 100, 'type': 'FIT', 'updatedAt': '2025-10-19T12:00:00Z'}]}])
+
+    Пример некорректного использования:
+        upload_stocks(None, "123456", "token_abcdef", "1"))
+        Traceback (most recent call last):
+            ...
+        TypeError: 'NoneType' object is not iterable
+    """
     offer_ids = get_offer_ids(campaign_id, market_token)
     stocks = create_stocks(watch_remnants, offer_ids, warehouse_id)
     for some_stock in list(divide(stocks, 2000)):
